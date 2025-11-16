@@ -262,6 +262,32 @@ export default function MicroneedlingTreatmentGuide() {
   const [showFullScreenVideo, setShowFullScreenVideo] = useState(false)
   const [showFullScreenImage, setShowFullScreenImage] = useState(false)
 
+  // Preload next few steps' media for faster loading
+  useEffect(() => {
+    const preloadMedia = (stepIndex: number) => {
+      const step = treatmentSteps[stepIndex]
+      if (!step) return
+
+      // Preload image using native Image API
+      if (step.image) {
+        const img = document.createElement('img')
+        img.src = step.image
+      }
+
+      // Preload video
+      if (step.video) {
+        const video = document.createElement('video')
+        video.preload = 'auto'
+        video.src = step.video
+      }
+    }
+
+    // Preload current and next 2 steps
+    for (let i = currentStep; i <= Math.min(currentStep + 2, treatmentSteps.length - 1); i++) {
+      preloadMedia(i)
+    }
+  }, [currentStep])
+
   useEffect(() => {
     let interval: NodeJS.Timeout
     if (isPlaying) {
@@ -637,9 +663,9 @@ export default function MicroneedlingTreatmentGuide() {
             <div className="md:col-span-4 hidden md:flex flex-col justify-center">
               <motion.div
                 key={`title-${currentStep}`}
-                initial={{ opacity: 0, x: -20 }}
+                initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5 }}
+                transition={{ duration: 0.2 }}
                 className="bg-white rounded-3xl p-4 md:p-6 shadow-lg mb-4 md:mb-0"
               >
                 <div className="flex justify-center mb-4">
@@ -652,6 +678,8 @@ export default function MicroneedlingTreatmentGuide() {
                         height={256}
                         className="w-full h-full object-cover hover:scale-105 transition-transform duration-300 cursor-pointer"
                         onClick={() => setShowFullScreenImage(true)}
+                        priority
+                        sizes="256px"
                       />
                     )}
                   </div>
@@ -676,10 +704,10 @@ export default function MicroneedlingTreatmentGuide() {
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={currentStepData.id}
-                    initial={{ opacity: 0, scale: 0.95 }}
+                    initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{ duration: 0.5 }}
+                    exit={{ opacity: 0, scale: 0.98 }}
+                    transition={{ duration: 0.2 }}
                     className="relative w-full h-80 sm:h-96 md:h-[32rem] rounded-3xl overflow-hidden shadow-lg bg-gray-100"
                   >
                     {currentStepData.video ? (
@@ -691,6 +719,14 @@ export default function MicroneedlingTreatmentGuide() {
                         muted={true}
                         playsInline={true}
                         controls={false}
+                        preload="auto"
+                        onCanPlay={() => {
+                          // Force play when video is ready
+                          const video = document.querySelector(`video[src="${currentStepData.video}"]`)
+                          if (video) {
+                            video.play().catch(e => console.log('Autoplay prevented:', e))
+                          }
+                        }}
                       >
                         <source src={currentStepData.video} type="video/quicktime" />
                         <source src={currentStepData.video} type="video/mp4" />
@@ -705,6 +741,7 @@ export default function MicroneedlingTreatmentGuide() {
                         className="hover:scale-105 transition-transform duration-300 cursor-pointer"
                         onClick={() => setShowFullScreenImage(true)}
                         priority
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-400">
